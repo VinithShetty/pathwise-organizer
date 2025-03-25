@@ -5,12 +5,12 @@ import { getAuth } from "firebase/auth";
 // Firebase configuration
 // Replace with your own Firebase project config
 const firebaseConfig = {
-  apiKey: "AIzaSyDEm-rKNgZaLFnz9L8ZMr3VwF1VsSMZ2BE",
-  authDomain: "pathwise-app.firebaseapp.com",
-  projectId: "pathwise-app",
-  storageBucket: "pathwise-app.appspot.com",
-  messagingSenderId: "409427396703",
-  appId: "1:409427396703:web:0c7cc1fee26c9ca84be9a4"
+  apiKey: "AIzaSyCQGNSpPCdVx2edqmKnOCk0KTd445p9LyY",
+  authDomain: "learningpathorganizer.firebaseapp.com",
+  projectId: "learningpathorganizer",
+  storageBucket: "learningpathorganizer.appspot.com",
+  messagingSenderId: "434411046513",
+  appId: "1:434411046513:web:7ab544302cd743c52f3dd0"
 };
 
 // Initialize Firebase
