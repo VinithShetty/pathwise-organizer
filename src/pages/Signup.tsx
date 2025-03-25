@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,11 +8,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/components/ui/use-toast";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import { useAuth } from "@/context/AuthContext";
+import { FcGoogle } from "react-icons/fc";
 
 const Signup = () => {
-  const navigate = useNavigate();
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false);
+  const { signup, signInWithGoogle, loading } = useAuth();
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -39,7 +40,7 @@ const Signup = () => {
     e.preventDefault();
     
     // Simple validation
-    if (!formData.name || !formData.email || !formData.password) {
+    if (!formData.email || !formData.password) {
       toast({
         title: "Error",
         description: "Please fill in all required fields",
@@ -57,18 +58,21 @@ const Signup = () => {
       return;
     }
     
-    setIsLoading(true);
-    
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
-      // Successful signup simulation
-      toast({
-        title: "Account created",
-        description: "Your account has been created successfully",
-      });
-      navigate("/dashboard");
-    }, 1500);
+    try {
+      await signup(formData.email, formData.password);
+      // Auth context handles success notification and navigation
+    } catch (error) {
+      // Auth context handles error notification
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    try {
+      await signInWithGoogle();
+      // Auth context handles success notification and navigation
+    } catch (error) {
+      // Auth context handles error notification
+    }
   };
 
   return (
@@ -85,6 +89,27 @@ const Signup = () => {
           </div>
           
           <div className="bg-card rounded-xl shadow-sm border p-6">
+            <Button 
+              onClick={handleGoogleSignIn}
+              variant="outline" 
+              className="w-full flex items-center justify-center gap-2 mb-6"
+              disabled={loading}
+            >
+              <FcGoogle className="w-5 h-5" />
+              Sign up with Google
+            </Button>
+            
+            <div className="relative mb-6">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">
+                  Or continue with
+                </span>
+              </div>
+            </div>
+            
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Full Name</Label>
@@ -94,8 +119,8 @@ const Signup = () => {
                   placeholder="John Doe"
                   value={formData.name}
                   onChange={handleInputChange}
-                  required
                   className="transition-all duration-200 focus:ring-2 focus:ring-primary/20"
+                  disabled={loading}
                 />
               </div>
               
@@ -110,6 +135,7 @@ const Signup = () => {
                   onChange={handleInputChange}
                   required
                   className="transition-all duration-200 focus:ring-2 focus:ring-primary/20"
+                  disabled={loading}
                 />
               </div>
               
@@ -124,6 +150,7 @@ const Signup = () => {
                   onChange={handleInputChange}
                   required
                   className="transition-all duration-200 focus:ring-2 focus:ring-primary/20"
+                  disabled={loading}
                 />
                 <p className="text-xs text-muted-foreground mt-1">
                   Must be at least 8 characters long
@@ -136,6 +163,7 @@ const Signup = () => {
                   checked={formData.agreeTerms}
                   onCheckedChange={handleCheckboxChange}
                   className="mt-1"
+                  disabled={loading}
                 />
                 <Label 
                   htmlFor="agreeTerms" 
@@ -155,9 +183,9 @@ const Signup = () => {
               <Button 
                 type="submit" 
                 className="w-full rounded-full"
-                disabled={isLoading}
+                disabled={loading}
               >
-                {isLoading ? "Creating account..." : "Create account"}
+                {loading ? "Creating account..." : "Create account"}
               </Button>
             </form>
             
