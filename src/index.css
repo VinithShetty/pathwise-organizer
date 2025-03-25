@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -13,7 +14,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 222.2 47.4% 11.2%;
+    --primary: 221.2 83.2% 53.3%;
     --primary-foreground: 210 40% 98%;
 
     --secondary: 210 40% 96.1%;
@@ -30,24 +31,17 @@
 
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --ring: 221.2 83.2% 53.3%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
 
     --sidebar-background: 0 0% 98%;
-
     --sidebar-foreground: 240 5.3% 26.1%;
-
     --sidebar-primary: 240 5.9% 10%;
-
     --sidebar-primary-foreground: 0 0% 98%;
-
     --sidebar-accent: 240 4.8% 95.9%;
-
     --sidebar-accent-foreground: 240 5.9% 10%;
-
     --sidebar-border: 220 13% 91%;
-
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
@@ -61,7 +55,7 @@
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 210 40% 98%;
+    --primary: 217.2 91.2% 59.8%;
     --primary-foreground: 222.2 47.4% 11.2%;
 
     --secondary: 217.2 32.6% 17.5%;
@@ -78,7 +72,8 @@
 
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    --ring: 224.3 76.3% 48%;
+    
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;
@@ -92,10 +87,70 @@
 
 @layer base {
   * {
-    @apply border-border;
+    @apply border-border selection:bg-primary/10 selection:text-primary;
+  }
+  
+  body {
+    @apply bg-background text-foreground antialiased min-h-screen;
+    font-feature-settings: "ss01", "ss02", "cv01", "cv02", "cv03";
   }
 
-  body {
-    @apply bg-background text-foreground;
+  html {
+    @apply scroll-smooth;
   }
+}
+
+@layer utilities {
+  .glass {
+    @apply bg-white/80 backdrop-blur-lg border border-white/20 shadow-md;
+  }
+  
+  .glass-dark {
+    @apply bg-black/30 backdrop-blur-lg border border-white/10 shadow-md;
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+  
+  .animation-delay-200 {
+    animation-delay: 200ms;
+  }
+  
+  .animation-delay-400 {
+    animation-delay: 400ms;
+  }
+  
+  .animation-delay-600 {
+    animation-delay: 600ms;
+  }
+}
+
+.stagger-animation > * {
+  opacity: 0;
+  animation: fade-in 0.5s ease-out forwards;
+}
+
+.stagger-animation > *:nth-child(1) {
+  animation-delay: 0ms;
+}
+
+.stagger-animation > *:nth-child(2) {
+  animation-delay: 100ms;
+}
+
+.stagger-animation > *:nth-child(3) {
+  animation-delay: 200ms;
+}
+
+.stagger-animation > *:nth-child(4) {
+  animation-delay: 300ms;
+}
+
+.stagger-animation > *:nth-child(5) {
+  animation-delay: 400ms;
+}
+
+.stagger-animation > *:nth-child(6) {
+  animation-delay: 500ms;
 }
