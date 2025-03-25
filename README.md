@@ -1,54 +1,64 @@
-# Welcome to your Lovable project
+# Welcome to your Lovable Learning Path Organizer project
 
 ## Project info
 
-**URL**: https://lovable.dev/projects/379328d9-06cf-4d9f-b85a-c734e8c85c41
+PathWise Learning Path Organizer is a modern web application designed to help users manage their learning goals efficiently. Built with React, TypeScript, Redux, and Firebase, this app allows users to create, track, and organize learning modules with deadlines, resources, and progress tracking. It features offline support, PDF export, and a visually appealing dark-themed dashboard inspired by modern UI design trends.
 
-## How can I edit this code?
+# Learning Path Organizer
 
-There are several ways of editing your application.
+![Learning Path Organizer Dashboard]
 
-**Use Lovable**
+**Learning Path Organizer** is a web application that helps users plan and track their learning goals. Whether you're learning web development, Python, or any other skill, this app provides a structured way to organize your learning path with modules, deadlines, and resources. It features a modern dark-themed UI, offline support, and seamless integration with Firebase for data persistence.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/379328d9-06cf-4d9f-b85a-c734e8c85c41) and start prompting.
+## Features
 
-Changes made via Lovable will be committed automatically to this repo.
+- **Module Management**: Add, edit, and delete learning modules with titles, deadlines, and resources.
+- **Progress Tracking**: Monitor your completion rate with a progress bar and analytics.
+- **Upcoming Deadlines**: View upcoming deadlines with a countdown of days left.
+- **Learning Roadmap**: Visualize your learning journey with a roadmap section (currently a placeholder with a background image).
+- **Offline Support**: Use the app offline with IndexedDB for local storage and sync with Firebase when online.
+- **PDF Export**: Export your learning path as a PDF for easy sharing.
+- **Dark Theme**: A sleek, dark-themed UI for a modern user experience.
+- **Motivational Section**: Stay motivated with a "Keep Going!" section featuring an inspirational message and image.
+- **Responsive Design**: Works seamlessly on desktop, tablet, and mobile devices.
 
-**Use your preferred IDE**
+## Tech Stack
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+- **Frontend**: React, TypeScript, Tailwind CSS
+- **State Management**: Redux Toolkit
+- **Backend**: Firebase (Firestore for data storage, Authentication for user management)
+- **Offline Storage**: IndexedDB (via Dexie.js)
+- **PDF Export**: jsPDF
+- **Visualization**: React Flow (for roadmap visualization, currently replaced with a background image)
+- **Styling**: Custom CSS with light/dark theme support
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+## Installation
 
-Follow these steps:
+1. **Clone the Repository**:
+   ```bash
+   git clone https://github.com/VinithShetty/pathwise-organizer.git
+   cd pathwise-organizer
+Set Up Firebase:
+Create a Firebase project at Firebase Console.
+Enable Firestore and Authentication (Email/Password).
+Copy your Firebase configuration and add it to src/services/firebase.ts:
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+const firebaseConfig = {
+  apiKey: "your-api-key",
+  authDomain: "your-auth-domain",
+  projectId: "your-project-id",
+  storageBucket: "your-storage-bucket",
+  messagingSenderId: "your-messaging-sender-id",
+  appId: "your-app-id",
+};
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Usage
+Sign In: Log in using your email and password via Firebase Authentication.
+Add a Module: Click "Add Module" to create a new learning module with a title and deadline.
+Track Progress: View your completion rate and upcoming deadlines on the dashboard.
+Edit/Delete Modules: Expand a module card to edit or delete it.
+Export as PDF: Click "Export as PDF" to download your learning path.
+Offline Mode: The app works offline, and changes will sync with Firebase when you're back online.
 
 ## What technologies are used for this project?
 
@@ -60,10 +70,19 @@ This project is built with .
 - shadcn-ui
 - Tailwind CSS
 
+## Future Improvements
+Enhanced Roadmap Visualization: Replace the static background image with an interactive React Flow visualization.
+Category-based Progress: Allow users to categorize modules (e.g., Web Development, Python) and track progress per category.
+Notifications: Implement push notifications for upcoming deadlines.
+User Profiles: Add user profiles with avatars and personalized settings.
+Advanced Analytics: Include detailed analytics, such as time spent on each module and learning streaks.
+
 ## How can I deploy this project?
 
-Simply open [Lovable](https://lovable.dev/projects/379328d9-06cf-4d9f-b85a-c734e8c85c41) and click on Share -> Publish.
+Simply open (https://vercel.com) and deploy your website using github.
 
-## I want to use a custom domain - is that possible?
-
-We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
+## Screenshots
+Front Page: https://imgur.com/a/DA3sg5t
+SignUp Page: https://imgur.com/a/zyjSnIQ
+Analytics Page: https://imgur.com/a/gYpRH0E
+Adding Path Page: https://imgur.com/a/8c4PdxX
