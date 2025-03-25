@@ -67,14 +67,6 @@ const Header = () => {
             Features
           </Link>
           <Link
-            to="/pricing"
-            className={`text-sm font-medium transition-colors hover:text-primary ${
-              isActive("/pricing") ? "text-primary" : "text-foreground/80"
-            }`}
-          >
-            Pricing
-          </Link>
-          <Link
             to="/about"
             className={`text-sm font-medium transition-colors hover:text-primary ${
               isActive("/about") ? "text-primary" : "text-foreground/80"
@@ -158,15 +150,6 @@ const Header = () => {
               onClick={() => setIsMobileMenuOpen(false)}
             >
               Features
-            </Link>
-            <Link
-              to="/pricing"
-              className={`text-base font-medium py-2 ${
-                isActive("/pricing") ? "text-primary" : "text-foreground/80"
-              }`}
-              onClick={() => setIsMobileMenuOpen(false)}
-            >
-              Pricing
             </Link>
             <Link
               to="/about"
