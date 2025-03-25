@@ -20,7 +20,9 @@ import {
   FileOutput, 
   Palette, 
   Settings, 
-  FileCheck 
+  FileCheck,
+  Sun,
+  Moon
 } from "lucide-react";
 import { useTheme } from "@/components/ui/theme-provider";
 import { toast } from "@/components/ui/use-toast";
