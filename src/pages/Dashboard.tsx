@@ -1,7 +1,7 @@
-
 import { useState, useEffect } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import PathForm from "@/components/PathForm";
 import { Button } from "@/components/ui/button";
 import { 
   Card, 
@@ -22,7 +22,10 @@ import {
   Settings, 
   FileCheck,
   Sun,
-  Moon
+  Moon,
+  Edit,
+  Calendar,
+  Plus
 } from "lucide-react";
 import { useTheme } from "@/components/ui/theme-provider";
 import { toast } from "@/components/ui/use-toast";
@@ -41,8 +44,8 @@ import {
   BarChart as ReBarChart,
   Bar,
 } from "recharts";
+import { format } from "date-fns";
 
-// Mock data for charts
 const learningTimeData = [
   { name: "Mon", hours: 2 },
   { name: "Tue", hours: 3.5 },
@@ -68,8 +71,7 @@ const skillsData = [
   { name: "UX Design", score: 58 },
 ];
 
-// Mock data for learning paths
-const learningPaths = [
+const initialLearningPaths = [
   {
     id: 1,
     title: "Full-Stack Web Development",
@@ -77,6 +79,7 @@ const learningPaths = [
     totalCourses: 12,
     completedCourses: 8,
     lastAccessed: "2 hours ago",
+    deadline: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30),
   },
   {
     id: 2,
@@ -85,6 +88,7 @@ const learningPaths = [
     totalCourses: 10,
     completedCourses: 3,
     lastAccessed: "Yesterday",
+    deadline: new Date(Date.now() + 1000 * 60 * 60 * 24 * 60),
   },
   {
     id: 3,
@@ -93,6 +97,7 @@ const learningPaths = [
     totalCourses: 8,
     completedCourses: 4,
     lastAccessed: "3 days ago",
+    deadline: new Date(Date.now() + 1000 * 60 * 60 * 24 * 45),
   },
 ];
 
@@ -101,9 +106,12 @@ const COLORS = ["#4f46e5", "#7c3aed", "#2563eb", "#0ea5e9"];
 const Dashboard = () => {
   const { theme, setTheme } = useTheme();
   const [activeTab, setActiveTab] = useState("overview");
+  const [isPathFormOpen, setIsPathFormOpen] = useState(false);
+  const [editingPath, setEditingPath] = useState<any>(null);
+  const [learningPaths, setLearningPaths] = useState(initialLearningPaths);
+  const [nextId, setNextId] = useState(4);
 
   useEffect(() => {
-    // Scroll to top when component mounts
     window.scrollTo(0, 0);
   }, []);
 
@@ -121,13 +129,66 @@ const Dashboard = () => {
       description: "Your analytics are being exported to PDF.",
     });
     
-    // Simulate export delay
     setTimeout(() => {
       toast({
         title: "Export Complete",
         description: "Your analytics have been exported successfully.",
       });
     }, 2000);
+  };
+
+  const openPathForm = (path?: any) => {
+    if (path) {
+      setEditingPath(path);
+    } else {
+      setEditingPath(null);
+    }
+    setIsPathFormOpen(true);
+  };
+
+  const closePathForm = () => {
+    setIsPathFormOpen(false);
+    setEditingPath(null);
+  };
+
+  const savePath = (pathData: any) => {
+    if (editingPath) {
+      setLearningPaths(paths => 
+        paths.map(path => 
+          path.id === editingPath.id 
+            ? { 
+                ...path, 
+                title: pathData.title, 
+                totalCourses: pathData.totalCourses,
+                deadline: pathData.deadline 
+              } 
+            : path
+        )
+      );
+    } else {
+      const newPath = {
+        id: nextId,
+        title: pathData.title,
+        progress: 0,
+        totalCourses: pathData.totalCourses,
+        completedCourses: 0,
+        lastAccessed: "Just now",
+        deadline: pathData.deadline,
+      };
+      
+      setLearningPaths([...learningPaths, newPath]);
+      setNextId(nextId + 1);
+    }
+  };
+
+  const getDeadlineStatus = (deadline: Date) => {
+    const today = new Date();
+    const daysLeft = Math.ceil((deadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (daysLeft < 0) return { text: "Overdue", class: "text-red-500" };
+    if (daysLeft < 7) return { text: `${daysLeft} days left`, class: "text-amber-500" };
+    if (daysLeft < 30) return { text: `${daysLeft} days left`, class: "text-emerald-500" };
+    return { text: `${daysLeft} days left`, class: "text-blue-500" };
   };
 
   return (
@@ -171,9 +232,7 @@ const Dashboard = () => {
               <TabsTrigger value="settings">Customize</TabsTrigger>
             </TabsList>
             
-            {/* Overview Tab */}
             <TabsContent value="overview" className="space-y-6">
-              {/* Analytics Cards */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <Card className="shadow-sm">
                   <CardHeader className="pb-2">
@@ -215,7 +274,6 @@ const Dashboard = () => {
                 </Card>
               </div>
               
-              {/* Charts */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <Card className="shadow-sm">
                   <CardHeader>
@@ -332,11 +390,10 @@ const Dashboard = () => {
               </div>
             </TabsContent>
             
-            {/* Learning Paths Tab */}
             <TabsContent value="learning-paths" className="space-y-6">
               <div className="flex justify-between items-center">
                 <h2 className="text-xl font-semibold">Your Learning Paths</h2>
-                <Button size="sm">
+                <Button size="sm" onClick={() => openPathForm()}>
                   <Plus className="h-4 w-4 mr-2" />
                   Create New Path
                 </Button>
@@ -352,7 +409,7 @@ const Dashboard = () => {
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <div className="space-y-2">
+                      <div className="space-y-3">
                         <div className="flex justify-between text-sm">
                           <span>Progress</span>
                           <span className="font-medium">{path.progress}%</span>
@@ -363,15 +420,31 @@ const Dashboard = () => {
                             style={{ width: `${path.progress}%` }}
                           ></div>
                         </div>
+                        
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <div>Last accessed: {path.lastAccessed}</div>
+                          
+                          <div className="flex items-center">
+                            <Calendar className="h-3 w-3 mr-1" />
+                            <span className={getDeadlineStatus(path.deadline).class}>
+                              {getDeadlineStatus(path.deadline).text}
+                            </span>
+                          </div>
+                        </div>
+                        
                         <div className="text-xs text-muted-foreground">
-                          Last accessed: {path.lastAccessed}
+                          <span className="font-medium">Deadline:</span> {format(path.deadline, "PPP")}
                         </div>
                       </div>
                     </CardContent>
-                    <CardFooter className="pt-0">
-                      <Button variant="outline" size="sm" className="w-full">
+                    <CardFooter className="pt-0 flex justify-between gap-2">
+                      <Button variant="outline" size="sm" onClick={() => openPathForm(path)} className="flex-1">
+                        <Edit className="h-4 w-4 mr-2" />
+                        Edit
+                      </Button>
+                      <Button variant="outline" size="sm" className="flex-1">
                         <FileCheck className="h-4 w-4 mr-2" />
-                        Continue Learning
+                        Continue
                       </Button>
                     </CardFooter>
                   </Card>
@@ -379,7 +452,6 @@ const Dashboard = () => {
               </div>
             </TabsContent>
             
-            {/* Settings Tab */}
             <TabsContent value="settings" className="space-y-6">
               <Card className="shadow-sm">
                 <CardHeader>
@@ -445,28 +517,16 @@ const Dashboard = () => {
         </div>
       </main>
       
+      <PathForm 
+        isOpen={isPathFormOpen}
+        onClose={closePathForm}
+        onSave={savePath}
+        initialData={editingPath}
+      />
+      
       <Footer />
     </div>
   );
 };
-
-// Workaround for missing lucide icon
-const Plus = ({ className }: { className?: string }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
-    <path d="M5 12h14" />
-    <path d="M12 5v14" />
-  </svg>
-);
 
 export default Dashboard;
