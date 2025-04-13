@@ -26,7 +26,15 @@ import {
   Moon,
   Edit,
   Calendar,
-  Plus
+  Plus,
+  Bell,
+  Layout,
+  Trash,
+  Loader,
+  Goal,
+  Save,
+  Check,
+  Mail
 } from "lucide-react";
 import { useTheme } from "@/components/ui/theme-provider";
 import { toast } from "@/components/ui/use-toast";
@@ -38,7 +46,7 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
+  Tooltip as RechartsTooltip,
   ResponsiveContainer,
   PieChart,
   Pie,
@@ -48,6 +56,31 @@ import {
   Bar,
 } from "recharts";
 import { format } from "date-fns";
+import { useAuth } from "@/context/AuthContext";
+import { LearningPath, getUserPaths, addPath, updatePath, deletePath } from "@/services/pathService";
+import { 
+  getUserSettings, 
+  updateUserSettings, 
+  UserSettings,
+  updateUserTheme,
+  updateGoalHours,
+  updateNotificationPreferences,
+  updateDashboardLayout,
+  updateAccentColor
+} from "@/services/settingsService";
+import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 const learningTimeData = [
   { name: "Mon", hours: 2 },
@@ -74,57 +107,97 @@ const skillsData = [
   { name: "UX Design", score: 58 },
 ];
 
-const initialLearningPaths = [
-  {
-    id: 1,
-    title: "Full-Stack Web Development",
-    progress: 65,
-    totalCourses: 12,
-    completedCourses: 8,
-    lastAccessed: "2 hours ago",
-    deadline: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30),
-  },
-  {
-    id: 2,
-    title: "Data Science & Machine Learning",
-    progress: 30,
-    totalCourses: 10,
-    completedCourses: 3,
-    lastAccessed: "Yesterday",
-    deadline: new Date(Date.now() + 1000 * 60 * 60 * 24 * 60),
-  },
-  {
-    id: 3,
-    title: "UI/UX Design Fundamentals",
-    progress: 45,
-    totalCourses: 8,
-    completedCourses: 4,
-    lastAccessed: "3 days ago",
-    deadline: new Date(Date.now() + 1000 * 60 * 60 * 24 * 45),
-  },
-];
-
 const COLORS = ["#4f46e5", "#7c3aed", "#2563eb", "#0ea5e9"];
 
 const Dashboard = () => {
   const { theme, setTheme } = useTheme();
+  const { currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState("overview");
   const [isPathFormOpen, setIsPathFormOpen] = useState(false);
-  const [editingPath, setEditingPath] = useState<any>(null);
-  const [learningPaths, setLearningPaths] = useState(initialLearningPaths);
-  const [nextId, setNextId] = useState(4);
+  const [editingPath, setEditingPath] = useState<Partial<LearningPath> | null>(null);
+  const [learningPaths, setLearningPaths] = useState<LearningPath[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
+  const [settingsLoading, setSettingsLoading] = useState(true);
+  const [deletePathId, setDeletePathId] = useState<string | null>(null);
   const overviewRef = useRef<HTMLDivElement>(null);
+
+  // Fetch user paths from Firestore
+  useEffect(() => {
+    const fetchUserPaths = async () => {
+      if (!currentUser) return;
+      
+      try {
+        setLoading(true);
+        const paths = await getUserPaths(currentUser.uid);
+        setLearningPaths(paths);
+      } catch (error) {
+        console.error("Error fetching paths:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load your learning paths.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserPaths();
+  }, [currentUser]);
+
+  // Fetch user settings from Firestore
+  useEffect(() => {
+    const fetchUserSettings = async () => {
+      if (!currentUser) return;
+      
+      try {
+        setSettingsLoading(true);
+        const settings = await getUserSettings(currentUser.uid);
+        setUserSettings(settings);
+        
+        // Apply theme from settings
+        setTheme(settings.theme);
+      } catch (error) {
+        console.error("Error fetching settings:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load your settings.",
+          variant: "destructive",
+        });
+      } finally {
+        setSettingsLoading(false);
+      }
+    };
+
+    fetchUserSettings();
+  }, [currentUser, setTheme]);
 
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
 
-  const handleThemeChange = (selectedTheme: "light" | "dark" | "system") => {
+  const handleThemeChange = async (selectedTheme: "light" | "dark" | "system") => {
     setTheme(selectedTheme);
-    toast({
-      title: "Theme Updated",
-      description: `Theme changed to ${selectedTheme}.`,
-    });
+    
+    // Save theme preference to Firestore
+    if (currentUser && userSettings) {
+      try {
+        await updateUserTheme(currentUser.uid, selectedTheme);
+        
+        toast({
+          title: "Theme Updated",
+          description: `Theme changed to ${selectedTheme}.`,
+        });
+      } catch (error) {
+        console.error("Error saving theme preference:", error);
+        toast({
+          title: "Error",
+          description: "Failed to save theme preference.",
+          variant: "destructive",
+        });
+      }
+    }
   };
 
   const handleExportAnalytics = async () => {
@@ -178,7 +251,7 @@ const Dashboard = () => {
     }
   };
 
-  const openPathForm = (path?: any) => {
+  const openPathForm = (path?: LearningPath) => {
     if (path) {
       setEditingPath(path);
     } else {
@@ -192,34 +265,102 @@ const Dashboard = () => {
     setEditingPath(null);
   };
 
-  const savePath = (pathData: any) => {
-    if (editingPath) {
-      setLearningPaths(paths => 
-        paths.map(path => 
-          path.id === editingPath.id 
-            ? { 
-                ...path, 
-                title: pathData.title, 
-                totalCourses: pathData.totalCourses,
-                deadline: pathData.deadline 
-              } 
-            : path
-        )
-      );
-    } else {
-      const newPath = {
-        id: nextId,
-        title: pathData.title,
-        progress: 0,
-        totalCourses: pathData.totalCourses,
-        completedCourses: 0,
-        lastAccessed: "Just now",
-        deadline: pathData.deadline,
-      };
-      
-      setLearningPaths([...learningPaths, newPath]);
-      setNextId(nextId + 1);
+  const savePath = async (pathData: { title: string; totalCourses: number; deadline: Date }) => {
+    if (!currentUser) {
+      toast({
+        title: "Authentication Error",
+        description: "You must be logged in to save a learning path.",
+        variant: "destructive",
+      });
+      return;
     }
+    
+    try {
+      if (editingPath && editingPath.id) {
+        // Update existing path
+        await updatePath(editingPath.id, {
+          title: pathData.title,
+          totalCourses: pathData.totalCourses,
+          deadline: pathData.deadline,
+        });
+        
+        // Update local state
+        setLearningPaths(paths => 
+          paths.map(path => 
+            path.id === editingPath.id 
+              ? { 
+                  ...path, 
+                  title: pathData.title, 
+                  totalCourses: pathData.totalCourses,
+                  deadline: pathData.deadline 
+                } 
+              : path
+          )
+        );
+        
+        toast({
+          title: "Path Updated",
+          description: `"${pathData.title}" has been updated successfully.`,
+        });
+      } else {
+        // Create new path
+        const newPath: Omit<LearningPath, "id"> = {
+          userId: currentUser.uid,
+          title: pathData.title,
+          progress: 0,
+          totalCourses: pathData.totalCourses,
+          completedCourses: 0,
+          lastAccessed: "Just now",
+          deadline: pathData.deadline,
+        };
+        
+        const pathId = await addPath(newPath);
+        
+        // Update local state
+        setLearningPaths([...learningPaths, { ...newPath, id: pathId }]);
+        
+        toast({
+          title: "Path Created",
+          description: `"${pathData.title}" has been created successfully.`,
+        });
+      }
+    } catch (error) {
+      console.error("Error saving path:", error);
+      toast({
+        title: "Error",
+        description: "Failed to save learning path.",
+        variant: "destructive",
+      });
+    } finally {
+      closePathForm();
+    }
+  };
+
+  const handleDeletePath = async (id: string) => {
+    try {
+      await deletePath(id);
+      
+      // Update local state
+      setLearningPaths(paths => paths.filter(path => path.id !== id));
+      
+      toast({
+        title: "Path Deleted",
+        description: "Learning path has been deleted successfully.",
+      });
+    } catch (error) {
+      console.error("Error deleting path:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete learning path.",
+        variant: "destructive",
+      });
+    } finally {
+      setDeletePathId(null);
+    }
+  };
+
+  const confirmDeletePath = (id: string) => {
+    setDeletePathId(id);
   };
 
   const getDeadlineStatus = (deadline: Date) => {
@@ -230,6 +371,99 @@ const Dashboard = () => {
     if (daysLeft < 7) return { text: `${daysLeft} days left`, class: "text-amber-500" };
     if (daysLeft < 30) return { text: `${daysLeft} days left`, class: "text-emerald-500" };
     return { text: `${daysLeft} days left`, class: "text-blue-500" };
+  };
+
+  // Settings handlers
+  const handleGoalHoursChange = async (hours: number) => {
+    if (!currentUser || !userSettings) return;
+    
+    try {
+      await updateGoalHours(currentUser.uid, hours);
+      
+      // Update local state
+      setUserSettings({ ...userSettings, goalHoursPerWeek: hours });
+      
+      toast({
+        title: "Goal Updated",
+        description: `Weekly learning goal updated to ${hours} hours.`,
+      });
+    } catch (error) {
+      console.error("Error updating goal hours:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update weekly goal.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleNotificationsChange = async (enabled: boolean) => {
+    if (!currentUser || !userSettings) return;
+    
+    try {
+      await updateNotificationPreferences(currentUser.uid, enabled);
+      
+      // Update local state
+      setUserSettings({ ...userSettings, emailNotifications: enabled });
+      
+      toast({
+        title: "Notifications Updated",
+        description: `Email notifications ${enabled ? 'enabled' : 'disabled'}.`,
+      });
+    } catch (error) {
+      console.error("Error updating notification preferences:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update notification preferences.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleLayoutChange = async (layout: "compact" | "standard" | "detailed") => {
+    if (!currentUser || !userSettings) return;
+    
+    try {
+      await updateDashboardLayout(currentUser.uid, layout);
+      
+      // Update local state
+      setUserSettings({ ...userSettings, dashboardLayout: layout });
+      
+      toast({
+        title: "Layout Updated",
+        description: `Dashboard layout changed to ${layout}.`,
+      });
+    } catch (error) {
+      console.error("Error updating dashboard layout:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update dashboard layout.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleAccentColorChange = async (color: string) => {
+    if (!currentUser || !userSettings) return;
+    
+    try {
+      await updateAccentColor(currentUser.uid, color);
+      
+      // Update local state
+      setUserSettings({ ...userSettings, accentColor: color });
+      
+      toast({
+        title: "Color Updated",
+        description: "Accent color has been updated.",
+      });
+    } catch (error) {
+      console.error("Error updating accent color:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update accent color.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -259,6 +493,7 @@ const Dashboard = () => {
                 variant="outline"
                 size="sm"
                 className="flex items-center gap-1.5"
+                onClick={() => setActiveTab("settings")}
               >
                 <Settings className="h-4 w-4" />
                 Settings
@@ -266,11 +501,11 @@ const Dashboard = () => {
             </div>
           </div>
           
-          <Tabs defaultValue="overview" className="space-y-6" onValueChange={(value) => setActiveTab(value)}>
+          <Tabs value={activeTab} className="space-y-6" onValueChange={(value) => setActiveTab(value)}>
             <TabsList className="grid grid-cols-3 md:w-[400px]">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="learning-paths">Learning Paths</TabsTrigger>
-              <TabsTrigger value="settings">Customize</TabsTrigger>
+              <TabsTrigger value="settings">Settings</TabsTrigger>
             </TabsList>
             
             <TabsContent value="overview" className="space-y-6" ref={overviewRef}>
@@ -340,7 +575,7 @@ const Dashboard = () => {
                           <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.1} />
                           <XAxis dataKey="name" />
                           <YAxis />
-                          <Tooltip />
+                          <RechartsTooltip />
                           <Area
                             type="monotone"
                             dataKey="hours"
@@ -380,7 +615,7 @@ const Dashboard = () => {
                               <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                             ))}
                           </Pie>
-                          <Tooltip />
+                          <RechartsTooltip />
                           <Legend />
                         </PieChart>
                       </ResponsiveContainer>
@@ -403,7 +638,7 @@ const Dashboard = () => {
                           <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.1} />
                           <XAxis dataKey="name" />
                           <YAxis />
-                          <Tooltip />
+                          <RechartsTooltip />
                           <Bar
                             dataKey="score"
                             fill="#8884d8"
@@ -440,119 +675,329 @@ const Dashboard = () => {
                 </Button>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {learningPaths.map((path) => (
-                  <Card key={path.id} className="shadow-sm">
-                    <CardHeader className="pb-2">
-                      <CardTitle>{path.title}</CardTitle>
-                      <CardDescription>
-                        {path.completedCourses} of {path.totalCourses} courses completed
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-3">
-                        <div className="flex justify-between text-sm">
-                          <span>Progress</span>
-                          <span className="font-medium">{path.progress}%</span>
-                        </div>
-                        <div className="w-full bg-secondary rounded-full h-2.5">
-                          <div
-                            className="bg-primary h-2.5 rounded-full"
-                            style={{ width: `${path.progress}%` }}
-                          ></div>
-                        </div>
-                        
-                        <div className="flex justify-between text-xs text-muted-foreground">
-                          <div>Last accessed: {path.lastAccessed}</div>
+              {loading ? (
+                <div className="flex justify-center items-center py-12">
+                  <Loader className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : learningPaths.length === 0 ? (
+                <Card className="shadow-sm">
+                  <CardHeader>
+                    <CardTitle>No Learning Paths</CardTitle>
+                    <CardDescription>
+                      You haven't created any learning paths yet.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-muted-foreground">
+                      Get started by creating your first learning path to track your progress.
+                    </p>
+                  </CardContent>
+                  <CardFooter>
+                    <Button onClick={() => openPathForm()}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create New Path
+                    </Button>
+                  </CardFooter>
+                </Card>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {learningPaths.map((path) => (
+                    <Card key={path.id} className="shadow-sm">
+                      <CardHeader className="pb-2">
+                        <CardTitle>{path.title}</CardTitle>
+                        <CardDescription>
+                          {path.completedCourses} of {path.totalCourses} courses completed
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-3">
+                          <div className="flex justify-between text-sm">
+                            <span>Progress</span>
+                            <span className="font-medium">{path.progress}%</span>
+                          </div>
+                          <div className="w-full bg-secondary rounded-full h-2.5">
+                            <div
+                              className="bg-primary h-2.5 rounded-full"
+                              style={{ width: `${path.progress}%` }}
+                            ></div>
+                          </div>
                           
-                          <div className="flex items-center">
-                            <Calendar className="h-3 w-3 mr-1" />
-                            <span className={getDeadlineStatus(path.deadline).class}>
-                              {getDeadlineStatus(path.deadline).text}
-                            </span>
+                          <div className="flex justify-between text-xs text-muted-foreground">
+                            <div>Last accessed: {path.lastAccessed}</div>
+                            
+                            <div className="flex items-center">
+                              <Calendar className="h-3 w-3 mr-1" />
+                              <span className={getDeadlineStatus(path.deadline).class}>
+                                {getDeadlineStatus(path.deadline).text}
+                              </span>
+                            </div>
+                          </div>
+                          
+                          <div className="text-xs text-muted-foreground">
+                            <span className="font-medium">Deadline:</span> {format(path.deadline, "PPP")}
                           </div>
                         </div>
-                        
-                        <div className="text-xs text-muted-foreground">
-                          <span className="font-medium">Deadline:</span> {format(path.deadline, "PPP")}
-                        </div>
-                      </div>
-                    </CardContent>
-                    <CardFooter className="pt-0 flex justify-between gap-2">
-                      <Button variant="outline" size="sm" onClick={() => openPathForm(path)} className="flex-1">
-                        <Edit className="h-4 w-4 mr-2" />
-                        Edit
-                      </Button>
-                      <Button variant="outline" size="sm" className="flex-1">
-                        <FileCheck className="h-4 w-4 mr-2" />
-                        Continue
-                      </Button>
-                    </CardFooter>
-                  </Card>
-                ))}
-              </div>
+                      </CardContent>
+                      <CardFooter className="pt-0 flex gap-2">
+                        <Button variant="outline" size="sm" onClick={() => openPathForm(path)} className="flex-1">
+                          <Edit className="h-4 w-4 mr-2" />
+                          Edit
+                        </Button>
+                        <Button variant="outline" size="sm" className="flex-1">
+                          <FileCheck className="h-4 w-4 mr-2" />
+                          Continue
+                        </Button>
+                        <AlertDialog open={deletePathId === path.id} onOpenChange={(open) => !open && setDeletePathId(null)}>
+                          <AlertDialogTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="flex-none px-2" 
+                              onClick={() => confirmDeletePath(path.id || "")}
+                            >
+                              <Trash className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This action will permanently delete "{path.title}" and cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDeletePath(path.id || "")}>
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </CardFooter>
+                    </Card>
+                  ))}
+                </div>
+              )}
             </TabsContent>
             
             <TabsContent value="settings" className="space-y-6">
-              <Card className="shadow-sm">
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Palette className="h-5 w-5 mr-2 text-primary" />
-                    Appearance Customization
-                  </CardTitle>
-                  <CardDescription>
-                    Customize how PathWise looks and feels
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="space-y-2">
-                    <h3 className="text-sm font-medium">Theme</h3>
-                    <div className="flex flex-wrap gap-4">
-                      <div
-                        className={`
-                          cursor-pointer rounded-md p-2 border-2 transition-all
-                          ${theme === "light" ? "border-primary" : "border-transparent"}
-                        `}
-                        onClick={() => handleThemeChange("light")}
-                      >
-                        <div className="w-20 h-20 bg-white rounded-md shadow-sm flex items-center justify-center">
-                          <Sun className="h-8 w-8 text-yellow-500" />
-                        </div>
-                        <div className="mt-2 text-center text-sm font-medium">Light</div>
-                      </div>
-                      
-                      <div
-                        className={`
-                          cursor-pointer rounded-md p-2 border-2 transition-all
-                          ${theme === "dark" ? "border-primary" : "border-transparent"}
-                        `}
-                        onClick={() => handleThemeChange("dark")}
-                      >
-                        <div className="w-20 h-20 bg-gray-900 rounded-md shadow-sm flex items-center justify-center">
-                          <Moon className="h-8 w-8 text-gray-100" />
-                        </div>
-                        <div className="mt-2 text-center text-sm font-medium">Dark</div>
-                      </div>
-                      
-                      <div
-                        className={`
-                          cursor-pointer rounded-md p-2 border-2 transition-all
-                          ${theme === "system" ? "border-primary" : "border-transparent"}
-                        `}
-                        onClick={() => handleThemeChange("system")}
-                      >
-                        <div className="w-20 h-20 bg-gradient-to-br from-white to-gray-900 rounded-md shadow-sm flex items-center justify-center">
-                          <div className="flex">
-                            <Sun className="h-8 w-8 text-yellow-500" />
-                            <Moon className="h-8 w-8 text-gray-100 -ml-4" />
+              {settingsLoading ? (
+                <div className="flex justify-center items-center py-12">
+                  <Loader className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : (
+                <>
+                  <Card className="shadow-sm">
+                    <CardHeader>
+                      <CardTitle className="flex items-center">
+                        <Palette className="h-5 w-5 mr-2 text-primary" />
+                        Appearance Customization
+                      </CardTitle>
+                      <CardDescription>
+                        Customize how PathWise looks and feels
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      <div className="space-y-2">
+                        <h3 className="text-sm font-medium">Theme</h3>
+                        <div className="flex flex-wrap gap-4">
+                          <div
+                            className={`
+                              cursor-pointer rounded-md p-2 border-2 transition-all
+                              ${theme === "light" ? "border-primary" : "border-transparent"}
+                            `}
+                            onClick={() => handleThemeChange("light")}
+                          >
+                            <div className="w-20 h-20 bg-white rounded-md shadow-sm flex items-center justify-center">
+                              <Sun className="h-8 w-8 text-yellow-500" />
+                            </div>
+                            <div className="mt-2 text-center text-sm font-medium">Light</div>
+                          </div>
+                          
+                          <div
+                            className={`
+                              cursor-pointer rounded-md p-2 border-2 transition-all
+                              ${theme === "dark" ? "border-primary" : "border-transparent"}
+                            `}
+                            onClick={() => handleThemeChange("dark")}
+                          >
+                            <div className="w-20 h-20 bg-gray-900 rounded-md shadow-sm flex items-center justify-center">
+                              <Moon className="h-8 w-8 text-gray-100" />
+                            </div>
+                            <div className="mt-2 text-center text-sm font-medium">Dark</div>
+                          </div>
+                          
+                          <div
+                            className={`
+                              cursor-pointer rounded-md p-2 border-2 transition-all
+                              ${theme === "system" ? "border-primary" : "border-transparent"}
+                            `}
+                            onClick={() => handleThemeChange("system")}
+                          >
+                            <div className="w-20 h-20 bg-gradient-to-br from-white to-gray-900 rounded-md shadow-sm flex items-center justify-center">
+                              <div className="flex">
+                                <Sun className="h-8 w-8 text-yellow-500" />
+                                <Moon className="h-8 w-8 text-gray-100 -ml-4" />
+                              </div>
+                            </div>
+                            <div className="mt-2 text-center text-sm font-medium">System</div>
                           </div>
                         </div>
-                        <div className="mt-2 text-center text-sm font-medium">System</div>
                       </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                      
+                      <Separator />
+                      
+                      <div className="space-y-2">
+                        <h3 className="text-sm font-medium">Accent Color</h3>
+                        <div className="flex flex-wrap gap-4">
+                          {["#3b82f6", "#8b5cf6", "#ec4899", "#f97316", "#10b981", "#64748b"].map(color => (
+                            <div
+                              key={color}
+                              className={`
+                                cursor-pointer rounded-full p-1 border-2 transition-all
+                                ${userSettings?.accentColor === color ? "border-primary" : "border-transparent"}
+                              `}
+                              onClick={() => handleAccentColorChange(color)}
+                            >
+                              <div 
+                                className="w-8 h-8 rounded-full" 
+                                style={{ backgroundColor: color }}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card className="shadow-sm">
+                    <CardHeader>
+                      <CardTitle className="flex items-center">
+                        <Layout className="h-5 w-5 mr-2 text-primary" />
+                        Dashboard Preferences
+                      </CardTitle>
+                      <CardDescription>
+                        Customize your dashboard experience
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h3 className="text-sm font-medium">Dashboard Layout</h3>
+                            <p className="text-xs text-muted-foreground">Choose how your dashboard information is displayed</p>
+                          </div>
+                          <Select 
+                            value={userSettings?.dashboardLayout} 
+                            onValueChange={(value) => handleLayoutChange(value as "compact" | "standard" | "detailed")}
+                          >
+                            <SelectTrigger className="w-32">
+                              <SelectValue placeholder="Select layout" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="compact">Compact</SelectItem>
+                              <SelectItem value="standard">Standard</SelectItem>
+                              <SelectItem value="detailed">Detailed</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      
+                      <Separator />
+                      
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between py-1">
+                          <div>
+                            <h3 className="text-sm font-medium">Weekly Learning Goal</h3>
+                            <p className="text-xs text-muted-foreground">Set your target study hours per week</p>
+                          </div>
+                          <div className="flex items-center">
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="h-8 w-8 rounded-l-md rounded-r-none p-0"
+                              onClick={() => userSettings && handleGoalHoursChange(Math.max(1, userSettings.goalHoursPerWeek - 1))}
+                            >
+                              -
+                            </Button>
+                            <div className="h-8 px-4 flex items-center justify-center border-y border-input">
+                              {userSettings?.goalHoursPerWeek || 15} hrs
+                            </div>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="h-8 w-8 rounded-r-md rounded-l-none p-0"
+                              onClick={() => userSettings && handleGoalHoursChange(userSettings.goalHoursPerWeek + 1)}
+                            >
+                              +
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card className="shadow-sm">
+                    <CardHeader>
+                      <CardTitle className="flex items-center">
+                        <Bell className="h-5 w-5 mr-2 text-primary" />
+                        Notifications & Reminders
+                      </CardTitle>
+                      <CardDescription>
+                        Control how and when you receive notifications
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      <div className="flex items-center justify-between py-1">
+                        <div>
+                          <h3 className="text-sm font-medium">Email Notifications</h3>
+                          <p className="text-xs text-muted-foreground">Receive email reminders about upcoming deadlines</p>
+                        </div>
+                        <Switch 
+                          checked={userSettings?.emailNotifications} 
+                          onCheckedChange={handleNotificationsChange}
+                        />
+                      </div>
+                      
+                      {userSettings?.emailNotifications && (
+                        <>
+                          <Separator />
+                          
+                          <div className="space-y-4">
+                            <h3 className="text-sm font-medium">Notification Frequency</h3>
+                            <div className="grid grid-cols-3 gap-2">
+                              <Button 
+                                variant="outline"
+                                size="sm"
+                                className="flex flex-col items-center gap-1 h-auto py-3"
+                              >
+                                <Mail className="h-4 w-4" />
+                                <span className="text-xs">Daily</span>
+                              </Button>
+                              <Button 
+                                variant="outline"
+                                size="sm"
+                                className="flex flex-col items-center gap-1 h-auto py-3 bg-primary/10"
+                              >
+                                <Mail className="h-4 w-4" />
+                                <span className="text-xs">Weekly</span>
+                              </Button>
+                              <Button 
+                                variant="outline"
+                                size="sm"
+                                className="flex flex-col items-center gap-1 h-auto py-3"
+                              >
+                                <Mail className="h-4 w-4" />
+                                <span className="text-xs">Monthly</span>
+                              </Button>
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </CardContent>
+                  </Card>
+                </>
+              )}
             </TabsContent>
           </Tabs>
         </div>

@@ -29,7 +29,7 @@ type PathFormProps = {
   onClose: () => void;
   onSave: (path: FormValues) => void;
   initialData?: {
-    id?: number;
+    id?: string;
     title?: string;
     totalCourses?: number;
     deadline?: Date;
