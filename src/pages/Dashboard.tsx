@@ -121,8 +121,9 @@ const Dashboard = () => {
   const [settingsLoading, setSettingsLoading] = useState(true);
   const [deletePathId, setDeletePathId] = useState<string | null>(null);
   const overviewRef = useRef<HTMLDivElement>(null);
+  const [usingLocalStorage, setUsingLocalStorage] = useState(false);
 
-  // Fetch user paths from Firestore
+  // Fetch user paths from Firestore or localStorage
   useEffect(() => {
     const fetchUserPaths = async () => {
       if (!currentUser) return;
@@ -131,11 +132,20 @@ const Dashboard = () => {
         setLoading(true);
         const paths = await getUserPaths(currentUser.uid);
         setLearningPaths(paths);
+        
+        // Check if we're using localStorage by examining the IDs
+        const usingLocal = paths.some(path => path.id?.startsWith('local-'));
+        setUsingLocalStorage(usingLocal);
+        
+        if (usingLocal) {
+          console.log("Using localStorage fallback for learning paths");
+        }
       } catch (error) {
         console.error("Error fetching paths:", error);
+        setUsingLocalStorage(true);
         toast({
           title: "Error",
-          description: "Failed to load your learning paths.",
+          description: "Failed to load learning paths from Firebase. Using local storage instead.",
           variant: "destructive",
         });
       } finally {
@@ -279,6 +289,7 @@ const Dashboard = () => {
       if (editingPath && editingPath.id) {
         // Update existing path
         await updatePath(editingPath.id, {
+          userId: currentUser.uid, // Make sure userId is included for localStorage fallback
           title: pathData.title,
           totalCourses: pathData.totalCourses,
           deadline: pathData.deadline,
@@ -319,17 +330,27 @@ const Dashboard = () => {
         // Update local state
         setLearningPaths([...learningPaths, { ...newPath, id: pathId }]);
         
-        toast({
-          title: "Path Created",
-          description: `"${pathData.title}" has been created successfully.`,
-        });
+        // If the ID starts with "local-", show a message about localStorage fallback
+        if (pathId.startsWith('local-')) {
+          toast({
+            title: "Path Created (Local Storage)",
+            description: "Your path was saved to browser storage due to Firebase permission issues. Check firebaseRules.md for instructions.",
+            duration: 6000,
+          });
+        } else {
+          toast({
+            title: "Path Created",
+            description: `"${pathData.title}" has been created successfully.`,
+          });
+        }
       }
     } catch (error) {
       console.error("Error saving path:", error);
       toast({
         title: "Error",
-        description: "Failed to save learning path.",
+        description: "Failed to save learning path, but we've enabled local storage fallback. Your data is saved locally.",
         variant: "destructive",
+        duration: 6000,
       });
     } finally {
       closePathForm();
@@ -471,6 +492,24 @@ const Dashboard = () => {
       <Header />
       
       <main className="flex-grow pt-16">
+        {usingLocalStorage && (
+          <div className="bg-amber-100 dark:bg-amber-900/30 border-b border-amber-200 dark:border-amber-800">
+            <div className="container mx-auto px-4 md:px-6 py-3 text-sm text-amber-800 dark:text-amber-200">
+              <p className="flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                  <line x1="12" y1="9" x2="12" y2="13"></line>
+                  <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+                <span>
+                  <strong>Firebase permission issue detected.</strong> Data is being saved to your browser's local storage. 
+                  This means your data will only be available on this device. 
+                  Please check the <a href="#" className="underline font-semibold" onClick={(e) => {e.preventDefault(); setActiveTab('settings');}}>Settings</a> for instructions on fixing this.
+                </span>
+              </p>
+            </div>
+          </div>
+        )}
         <div className="container mx-auto px-4 md:px-6 py-8">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
             <div>
@@ -781,6 +820,71 @@ const Dashboard = () => {
             </TabsContent>
             
             <TabsContent value="settings" className="space-y-6">
+              {usingLocalStorage && (
+                <Card className="shadow-sm border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/20">
+                  <CardHeader>
+                    <CardTitle className="text-amber-800 dark:text-amber-200 flex items-center gap-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                      </svg>
+                      Firebase Security Rules Need Configuration
+                    </CardTitle>
+                    <CardDescription className="text-amber-700 dark:text-amber-300">
+                      Your app is currently saving data to local storage because of Firebase permissions
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <p className="text-sm">
+                        We've detected that your Firebase database is rejecting write operations due to insufficient permissions. 
+                        We're temporarily storing your data in your browser's local storage so you can continue using the app.
+                      </p>
+                      
+                      <div className="rounded-md bg-amber-100 dark:bg-amber-900/40 p-4 text-sm">
+                        <h4 className="font-medium text-amber-800 dark:text-amber-200 mb-2">How to fix this:</h4>
+                        <ol className="list-decimal pl-5 space-y-1 text-amber-700 dark:text-amber-300">
+                          <li>Go to your Firebase Console</li>
+                          <li>Select your project: "learningpathorganizer"</li>
+                          <li>Go to "Firestore Database" in the left navigation</li>
+                          <li>Click on the "Rules" tab</li>
+                          <li>Update your security rules (see below)</li>
+                          <li>Click "Publish" to save your changes</li>
+                        </ol>
+                      </div>
+                      
+                      <div>
+                        <h4 className="font-medium mb-2 text-sm">Recommended security rules:</h4>
+                        <pre className="bg-gray-100 dark:bg-gray-800 p-3 rounded-md text-xs overflow-auto">
+{`rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allow authenticated users to read and write their own data
+    match /learning-paths/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+    }
+    
+    match /user-settings/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}`}
+                        </pre>
+                      </div>
+                      
+                      <p className="text-xs text-amber-600 dark:text-amber-400">
+                        Note: After updating your Firebase security rules, refresh this page to start using cloud storage again.
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+              
               {settingsLoading ? (
                 <div className="flex justify-center items-center py-12">
                   <Loader className="h-8 w-8 animate-spin text-primary" />
