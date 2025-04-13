@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+
+import { useState, useEffect, useRef } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import PathForm from "@/components/PathForm";
@@ -29,6 +30,8 @@ import {
 } from "lucide-react";
 import { useTheme } from "@/components/ui/theme-provider";
 import { toast } from "@/components/ui/use-toast";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 import {
   AreaChart,
   Area,
@@ -110,6 +113,7 @@ const Dashboard = () => {
   const [editingPath, setEditingPath] = useState<any>(null);
   const [learningPaths, setLearningPaths] = useState(initialLearningPaths);
   const [nextId, setNextId] = useState(4);
+  const overviewRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -123,18 +127,55 @@ const Dashboard = () => {
     });
   };
 
-  const handleExportAnalytics = () => {
+  const handleExportAnalytics = async () => {
     toast({
       title: "Exporting Analytics",
-      description: "Your analytics are being exported to PDF.",
+      description: "Your analytics are being prepared for PDF export.",
     });
     
-    setTimeout(() => {
+    if (!overviewRef.current) {
+      toast({
+        title: "Export Failed",
+        description: "Could not find content to export.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Create a PDF document
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      
+      // Capture the content as an image
+      const canvas = await html2canvas(overviewRef.current, {
+        scale: 2, // Higher quality
+        useCORS: true,
+        logging: false,
+      });
+      
+      const imgData = canvas.toDataURL('image/png');
+      
+      // Add image to PDF
+      const imgWidth = 210; // A4 width in mm
+      const imgHeight = canvas.height * imgWidth / canvas.width;
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+      
+      // Download the PDF
+      pdf.save('pathwise-learning-analytics.pdf');
+      
       toast({
         title: "Export Complete",
         description: "Your analytics have been exported successfully.",
       });
-    }, 2000);
+    } catch (error) {
+      console.error("PDF generation error:", error);
+      toast({
+        title: "Export Failed",
+        description: "There was an error generating the PDF.",
+        variant: "destructive",
+      });
+    }
   };
 
   const openPathForm = (path?: any) => {
@@ -232,7 +273,7 @@ const Dashboard = () => {
               <TabsTrigger value="settings">Customize</TabsTrigger>
             </TabsList>
             
-            <TabsContent value="overview" className="space-y-6">
+            <TabsContent value="overview" className="space-y-6" ref={overviewRef}>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <Card className="shadow-sm">
                   <CardHeader className="pb-2">
